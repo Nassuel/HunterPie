@@ -92,10 +92,10 @@ public class EnumerableExtensionsTests
 
     private static IEnumerable<TestCaseData> TryCastCases()
     {
-        yield return new TestCaseData(new object[] { 1, 2, 3 }, 3).SetName("TryCast_WhenAllElementsMatch_ReturnsAllCasted");
-        yield return new TestCaseData(new object[] { 1, "two", 3, "four" }, 2).SetName("TryCast_WhenSomeElementsDontMatch_ReturnsOnlyMatching");
-        yield return new TestCaseData(new object[] { "a", "b", "c" }, 0).SetName("TryCast_WhenNoElementsMatch_ReturnsEmpty");
-        yield return new TestCaseData(Array.Empty<object>(), 0).SetName("TryCast_WhenSourceIsEmpty_ReturnsEmpty");
+        yield return new TestCaseData(new object[] { 1, 2, 3 }, 3).SetDescription("TryCast_WhenAllElementsMatch_ReturnsAllCasted");
+        yield return new TestCaseData(new object[] { 1, "two", 3, "four" }, 2).SetDescription("TryCast_WhenSomeElementsDontMatch_ReturnsOnlyMatching");
+        yield return new TestCaseData(new object[] { "a", "b", "c" }, 0).SetDescription("TryCast_WhenNoElementsMatch_ReturnsEmpty");
+        yield return new TestCaseData(Array.Empty<object>(), 0).SetDescription("TryCast_WhenSourceIsEmpty_ReturnsEmpty");
     }
 
     #endregion
@@ -120,8 +120,8 @@ public class EnumerableExtensionsTests
 
     private static IEnumerable<TestCaseData> SingleOrNullStringCases()
     {
-        yield return new TestCaseData(new[] { "hello" }, "hello").SetName("SingleOrNull_WhenExactlyOneString_ReturnsThatString");
-        yield return new TestCaseData(new[] { "a", "b" }, null).SetName("SingleOrNull_WhenMultipleStrings_ReturnsNull");
+        yield return new TestCaseData(new[] { "hello" }, "hello").SetDescription("SingleOrNull_WhenExactlyOneString_ReturnsThatString");
+        yield return new TestCaseData(new[] { "a", "b" }, null).SetDescription("SingleOrNull_WhenMultipleStrings_ReturnsNull");
     }
 
     #endregion
@@ -161,10 +161,10 @@ public class EnumerableExtensionsTests
 
     private static IEnumerable<TestCaseData> FilterNullCases()
     {
-        yield return new TestCaseData(new[] { "a", "b", "c" }, 3).SetName("FilterNull_WhenAllElementsAreNonNull_ReturnsAll");
-        yield return new TestCaseData(new[] { "a", null, "c", null }, 2).SetName("FilterNull_WhenSomeElementsAreNull_FiltersThemOut");
-        yield return new TestCaseData(new string?[] { null, null, null }, 0).SetName("FilterNull_WhenAllElementsAreNull_ReturnsEmpty");
-        yield return new TestCaseData(Array.Empty<string?>(), 0).SetName("FilterNull_WhenSourceIsEmpty_ReturnsEmpty");
+        yield return new TestCaseData(new[] { "a", "b", "c" }, 3).SetDescription("FilterNull_WhenAllElementsAreNonNull_ReturnsAll");
+        yield return new TestCaseData(new[] { "a", null, "c", null }, 2).SetDescription("FilterNull_WhenSomeElementsAreNull_FiltersThemOut");
+        yield return new TestCaseData(new string?[] { null, null, null }, 0).SetDescription("FilterNull_WhenAllElementsAreNull_ReturnsEmpty");
+        yield return new TestCaseData(Array.Empty<string?>(), 0).SetDescription("FilterNull_WhenSourceIsEmpty_ReturnsEmpty");
     }
 
     #endregion
@@ -209,11 +209,11 @@ public class EnumerableExtensionsTests
     private static IEnumerable<TestCaseData> TakeRollingCases()
     {
         yield return new TestCaseData(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, 2, 3, new[] { 2, 3, 4 })
-            .SetName("TakeRolling_WhenRangeIsWithinBounds_ReturnsThatSlice");
+            .SetDescription("TakeRolling_WhenRangeIsWithinBounds_ReturnsThatSlice");
         yield return new TestCaseData(new[] { 0, 1, 2, 3, 4 }, 3, 4, new[] { 0, 1, 3, 4 })
-            .SetName("TakeRolling_WhenRangeWrapsAround_WrapsFromStart");
+            .SetDescription("TakeRolling_WhenRangeWrapsAround_WrapsFromStart");
         yield return new TestCaseData(new[] { 10, 20, 30, 40, 50 }, 0, 3, new[] { 10, 20, 30 })
-            .SetName("TakeRolling_WhenSkipIsZero_StartsFromBeginning");
+            .SetDescription("TakeRolling_WhenSkipIsZero_StartsFromBeginning");
     }
 
     #endregion
