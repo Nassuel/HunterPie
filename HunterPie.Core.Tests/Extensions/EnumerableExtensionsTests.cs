@@ -13,24 +13,11 @@ public class EnumerableExtensionsTests
 {
     #region PrependNotNull
 
-    [Test]
-    public void PrependNotNull_WhenValueIsNotNull_PrependsValue()
+    [TestCase(1, new[] { 2, 3, 4 }, ExpectedResult = new[] { 1, 2, 3, 4 })]
+    [TestCase(42, new int[0], ExpectedResult = new[] { 42 })]
+    public int[] PrependNotNull_WhenValueIsNotNull_PrependsValue(int value, int[] source)
     {
-        IEnumerable<int> source = new[] { 2, 3, 4 };
-
-        IEnumerable<int> result = source.PrependNotNull(1);
-
-        Assert.That(result.First(), Is.EqualTo(1));
-    }
-
-    [Test]
-    public void PrependNotNull_WhenValueIsNotNull_ResultHasOneMoreElement()
-    {
-        IEnumerable<int> source = new[] { 2, 3, 4 };
-
-        IEnumerable<int> result = source.PrependNotNull(1);
-
-        Assert.That(result.Count(), Is.EqualTo(4));
+        return source.AsEnumerable().PrependNotNull(value).ToArray();
     }
 
     [Test]
@@ -41,16 +28,6 @@ public class EnumerableExtensionsTests
         IEnumerable<string> result = source.PrependNotNull(null);
 
         Assert.That(result, Is.EquivalentTo(source));
-    }
-
-    [Test]
-    public void PrependNotNull_WhenSourceIsEmpty_AndValueIsNotNull_ReturnsSingleElement()
-    {
-        IEnumerable<int> source = Enumerable.Empty<int>();
-
-        IEnumerable<int> result = source.PrependNotNull(42);
-
-        Assert.That(result.Single(), Is.EqualTo(42));
     }
 
     [Test]
@@ -65,163 +42,86 @@ public class EnumerableExtensionsTests
 
     #endregion
 
-    #region DisposeAll (array)
+    #region DisposeAll
 
-    [Test]
-    public void DisposeAll_Array_DisposesAllElements()
+    [TestCase(1)]
+    [TestCase(3)]
+    public void DisposeAll_Array_DisposesAllElements(int count)
     {
-        var disposable1 = new TrackingDisposable();
-        var disposable2 = new TrackingDisposable();
-        var disposable3 = new TrackingDisposable();
-        TrackingDisposable[] array = { disposable1, disposable2, disposable3 };
+        TrackingDisposable[] array = Enumerable.Range(0, count).Select(_ => new TrackingDisposable()).ToArray();
 
         array.DisposeAll();
 
-        Assert.That(disposable1.IsDisposed, Is.True);
-        Assert.That(disposable2.IsDisposed, Is.True);
-        Assert.That(disposable3.IsDisposed, Is.True);
+        Assert.That(array.All(d => d.IsDisposed), Is.True);
     }
 
     [Test]
     public void DisposeAll_Array_WhenEmpty_DoesNotThrow()
     {
-        TrackingDisposable[] array = Array.Empty<TrackingDisposable>();
-
-        Assert.That(() => array.DisposeAll(), Throws.Nothing);
+        Assert.That(() => Array.Empty<TrackingDisposable>().DisposeAll(), Throws.Nothing);
     }
 
-    [Test]
-    public void DisposeAll_Array_WhenSingleElement_DisposesIt()
+    [TestCase(1)]
+    [TestCase(2)]
+    public void DisposeAll_IEnumerable_DisposesAllElements(int count)
     {
-        var disposable = new TrackingDisposable();
-        TrackingDisposable[] array = { disposable };
+        List<TrackingDisposable> source = Enumerable.Range(0, count).Select(_ => new TrackingDisposable()).ToList();
 
-        array.DisposeAll();
+        ((IEnumerable<TrackingDisposable>)source).DisposeAll();
 
-        Assert.That(disposable.IsDisposed, Is.True);
-    }
-
-    #endregion
-
-    #region DisposeAll (IEnumerable)
-
-    [Test]
-    public void DisposeAll_IEnumerable_DisposesAllElements()
-    {
-        var disposable1 = new TrackingDisposable();
-        var disposable2 = new TrackingDisposable();
-        IEnumerable<TrackingDisposable> source = new List<TrackingDisposable> { disposable1, disposable2 };
-
-        source.DisposeAll();
-
-        Assert.That(disposable1.IsDisposed, Is.True);
-        Assert.That(disposable2.IsDisposed, Is.True);
+        Assert.That(source.All(d => d.IsDisposed), Is.True);
     }
 
     [Test]
     public void DisposeAll_IEnumerable_WhenEmpty_DoesNotThrow()
     {
-        IEnumerable<TrackingDisposable> source = Enumerable.Empty<TrackingDisposable>();
-
-        Assert.That(() => source.DisposeAll(), Throws.Nothing);
+        Assert.That(() => Enumerable.Empty<TrackingDisposable>().DisposeAll(), Throws.Nothing);
     }
 
     #endregion
 
     #region TryCast
 
-    [Test]
-    public void TryCast_WhenAllElementsMatch_ReturnsAllCasted()
+    [TestCaseSource(nameof(TryCastCases))]
+    public void TryCast_ReturnsExpectedCount(object[] source, int expectedCount)
     {
-        IEnumerable source = new object[] { 1, 2, 3 };
+        IEnumerable<int> result = ((IEnumerable)source).TryCast<int>();
 
-        IEnumerable<int> result = source.TryCast<int>();
-
-        Assert.That(result.Count(), Is.EqualTo(3));
+        Assert.That(result.Count(), Is.EqualTo(expectedCount));
     }
 
-    [Test]
-    public void TryCast_WhenSomeElementsDontMatch_ReturnsOnlyMatching()
+    private static IEnumerable<TestCaseData> TryCastCases()
     {
-        IEnumerable source = new object[] { 1, "two", 3, "four" };
-
-        IEnumerable<int> result = source.TryCast<int>();
-
-        Assert.That(result.Count(), Is.EqualTo(2));
-    }
-
-    [Test]
-    public void TryCast_WhenNoElementsMatch_ReturnsEmpty()
-    {
-        IEnumerable source = new object[] { "a", "b", "c" };
-
-        IEnumerable<int> result = source.TryCast<int>();
-
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public void TryCast_WhenSourceIsEmpty_ReturnsEmpty()
-    {
-        IEnumerable source = Array.Empty<object>();
-
-        IEnumerable<int> result = source.TryCast<int>();
-
-        Assert.That(result, Is.Empty);
+        yield return new TestCaseData(new object[] { 1, 2, 3 }, 3).SetName("TryCast_WhenAllElementsMatch_ReturnsAllCasted");
+        yield return new TestCaseData(new object[] { 1, "two", 3, "four" }, 2).SetName("TryCast_WhenSomeElementsDontMatch_ReturnsOnlyMatching");
+        yield return new TestCaseData(new object[] { "a", "b", "c" }, 0).SetName("TryCast_WhenNoElementsMatch_ReturnsEmpty");
+        yield return new TestCaseData(Array.Empty<object>(), 0).SetName("TryCast_WhenSourceIsEmpty_ReturnsEmpty");
     }
 
     #endregion
 
     #region SingleOrNull
 
-    [Test]
-    public void SingleOrNull_WhenExactlyOneElement_ReturnsThatElement()
+    [TestCase(new[] { 42 }, ExpectedResult = 42)]
+    [TestCase(new int[0], ExpectedResult = 0)]
+    [TestCase(new[] { 1, 2 }, ExpectedResult = 0)]
+    public int? SingleOrNull_Int_ReturnsExpected(int[] source)
     {
-        IEnumerable<int> source = new[] { 42 };
-
-        int? result = source.SingleOrNull();
-
-        Assert.That(result, Is.EqualTo(42));
+        return source.AsEnumerable().SingleOrNull();
     }
 
-    [Test]
-    public void SingleOrNull_WhenEmpty_ReturnsDefault()
+    [TestCaseSource(nameof(SingleOrNullStringCases))]
+    public void SingleOrNull_String_ReturnsExpected(string[] source, string? expected)
     {
-        IEnumerable<int> source = Enumerable.Empty<int>();
+        string? result = source.AsEnumerable().SingleOrNull();
 
-        int? result = source.SingleOrNull();
-
-        Assert.That(result, Is.EqualTo(default(int)));
+        Assert.That(result, Is.EqualTo(expected));
     }
 
-    [Test]
-    public void SingleOrNull_WhenMoreThanOneElement_ReturnsDefault()
+    private static IEnumerable<TestCaseData> SingleOrNullStringCases()
     {
-        IEnumerable<int> source = new[] { 1, 2 };
-
-        int? result = source.SingleOrNull();
-
-        Assert.That(result, Is.EqualTo(default(int)));
-    }
-
-    [Test]
-    public void SingleOrNull_WhenExactlyOneString_ReturnsThatString()
-    {
-        IEnumerable<string> source = new[] { "hello" };
-
-        string? result = source.SingleOrNull();
-
-        Assert.That(result, Is.EqualTo("hello"));
-    }
-
-    [Test]
-    public void SingleOrNull_WhenMultipleStrings_ReturnsNull()
-    {
-        IEnumerable<string> source = new[] { "a", "b" };
-
-        string? result = source.SingleOrNull();
-
-        Assert.That(result, Is.Null);
+        yield return new TestCaseData(new[] { "hello" }, "hello").SetName("SingleOrNull_WhenExactlyOneString_ReturnsThatString");
+        yield return new TestCaseData(new[] { "a", "b" }, null).SetName("SingleOrNull_WhenMultipleStrings_ReturnsNull");
     }
 
     #endregion
@@ -236,75 +136,52 @@ public class EnumerableExtensionsTests
         ObservableCollection<int> result = source.ToObservableCollection();
 
         Assert.That(result, Is.EquivalentTo(source));
+        Assert.That(result, Is.InstanceOf<ObservableCollection<int>>());
     }
 
     [Test]
     public void ToObservableCollection_WhenEmpty_ReturnsEmptyObservableCollection()
     {
-        IEnumerable<int> source = Enumerable.Empty<int>();
-
-        ObservableCollection<int> result = source.ToObservableCollection();
+        ObservableCollection<int> result = Enumerable.Empty<int>().ToObservableCollection();
 
         Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public void ToObservableCollection_ReturnTypeIsObservableCollection()
-    {
-        IEnumerable<int> source = new[] { 1, 2, 3 };
-
-        object result = source.ToObservableCollection();
-
-        Assert.That(result, Is.InstanceOf<ObservableCollection<int>>());
     }
 
     #endregion
 
     #region FilterNull
 
-    [Test]
-    public void FilterNull_WhenAllElementsAreNonNull_ReturnsAll()
+    [TestCaseSource(nameof(FilterNullCases))]
+    public void FilterNull_ReturnsExpectedCount(string?[] source, int expectedCount)
     {
-        IEnumerable<string?> source = new[] { "a", "b", "c" };
+        IEnumerable<string> result = source.AsEnumerable().FilterNull();
 
-        IEnumerable<string> result = source.FilterNull();
-
-        Assert.That(result.Count(), Is.EqualTo(3));
+        Assert.That(result.Count(), Is.EqualTo(expectedCount));
     }
 
-    [Test]
-    public void FilterNull_WhenSomeElementsAreNull_FiltersThemOut()
+    private static IEnumerable<TestCaseData> FilterNullCases()
     {
-        IEnumerable<string?> source = new[] { "a", null, "c", null };
-
-        IEnumerable<string> result = source.FilterNull();
-
-        Assert.That(result.Count(), Is.EqualTo(2));
-    }
-
-    [Test]
-    public void FilterNull_WhenAllElementsAreNull_ReturnsEmpty()
-    {
-        IEnumerable<string?> source = new string?[] { null, null, null };
-
-        IEnumerable<string> result = source.FilterNull();
-
-        Assert.That(result, Is.Empty);
-    }
-
-    [Test]
-    public void FilterNull_WhenSourceIsEmpty_ReturnsEmpty()
-    {
-        IEnumerable<string?> source = Enumerable.Empty<string?>();
-
-        IEnumerable<string> result = source.FilterNull();
-
-        Assert.That(result, Is.Empty);
+        yield return new TestCaseData(new[] { "a", "b", "c" }, 3).SetName("FilterNull_WhenAllElementsAreNonNull_ReturnsAll");
+        yield return new TestCaseData(new[] { "a", null, "c", null }, 2).SetName("FilterNull_WhenSomeElementsAreNull_FiltersThemOut");
+        yield return new TestCaseData(new string?[] { null, null, null }, 0).SetName("FilterNull_WhenAllElementsAreNull_ReturnsEmpty");
+        yield return new TestCaseData(Array.Empty<string?>(), 0).SetName("FilterNull_WhenSourceIsEmpty_ReturnsEmpty");
     }
 
     #endregion
 
     #region ForEach
+
+    [TestCase(new[] { 1, 2, 3 }, ExpectedResult = 3)]
+    [TestCase(new int[0], ExpectedResult = 0)]
+    [TestCase(new[] { 1, 2, 3, 4, 5 }, ExpectedResult = 5)]
+    public int ForEach_ExecutesActionExpectedNumberOfTimes(int[] source)
+    {
+        int callCount = 0;
+
+        source.AsEnumerable().ForEach(_ => callCount++);
+
+        return callCount;
+    }
 
     [Test]
     public void ForEach_ExecutesActionOnEachElement()
@@ -317,61 +194,26 @@ public class EnumerableExtensionsTests
         Assert.That(visited, Is.EquivalentTo(new[] { 1, 2, 3 }));
     }
 
-    [Test]
-    public void ForEach_WhenEmpty_DoesNotExecuteAction()
-    {
-        IEnumerable<int> source = Enumerable.Empty<int>();
-        int callCount = 0;
-
-        source.ForEach(_ => callCount++);
-
-        Assert.That(callCount, Is.EqualTo(0));
-    }
-
-    [Test]
-    public void ForEach_ExecutesActionExactlyOncePerElement()
-    {
-        IEnumerable<int> source = new[] { 1, 2, 3, 4, 5 };
-        int callCount = 0;
-
-        source.ForEach(_ => callCount++);
-
-        Assert.That(callCount, Is.EqualTo(5));
-    }
-
     #endregion
 
     #region TakeRolling
 
-    [Test]
-    public void TakeRolling_WhenRangeIsWithinBounds_ReturnsThatSlice()
+    [TestCaseSource(nameof(TakeRollingCases))]
+    public void TakeRolling_ReturnsExpectedSlice(int[] array, int skip, int take, int[] expected)
     {
-        int[] array = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+        IEnumerable<int> result = array.TakeRolling(skip: skip, take: take);
 
-        IEnumerable<int> result = array.TakeRolling(skip: 2, take: 3);
-
-        Assert.That(result, Is.EquivalentTo(new[] { 2, 3, 4 }));
+        Assert.That(result, Is.EquivalentTo(expected));
     }
 
-    [Test]
-    public void TakeRolling_WhenRangeWrapsAround_WrapsFromStart()
+    private static IEnumerable<TestCaseData> TakeRollingCases()
     {
-        int[] array = { 0, 1, 2, 3, 4 };
-
-        // skip=3, take=4 → lastIndex=7 > length=5, so wraps
-        IEnumerable<int> result = array.TakeRolling(skip: 3, take: 4);
-
-        Assert.That(result, Is.EquivalentTo(new[] { 0, 1, 3, 4 }));
-    }
-
-    [Test]
-    public void TakeRolling_WhenSkipIsZero_StartsFromBeginning()
-    {
-        int[] array = { 10, 20, 30, 40, 50 };
-
-        IEnumerable<int> result = array.TakeRolling(skip: 0, take: 3);
-
-        Assert.That(result, Is.EquivalentTo(new[] { 10, 20, 30 }));
+        yield return new TestCaseData(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, 2, 3, new[] { 2, 3, 4 })
+            .SetName("TakeRolling_WhenRangeIsWithinBounds_ReturnsThatSlice");
+        yield return new TestCaseData(new[] { 0, 1, 2, 3, 4 }, 3, 4, new[] { 0, 1, 3, 4 })
+            .SetName("TakeRolling_WhenRangeWrapsAround_WrapsFromStart");
+        yield return new TestCaseData(new[] { 10, 20, 30, 40, 50 }, 0, 3, new[] { 10, 20, 30 })
+            .SetName("TakeRolling_WhenSkipIsZero_StartsFromBeginning");
     }
 
     #endregion
@@ -383,20 +225,15 @@ public class EnumerableExtensionsTests
     {
         IEnumerable source = new List<int> { 1, 2, 3 };
 
-        int result = source.Count();
-
-        Assert.That(result, Is.EqualTo(3));
+        Assert.That(source.Count(), Is.EqualTo(3));
     }
 
     [Test]
     public void Count_WhenNotICollection_ReturnsCorrectCount()
     {
-        // Use a custom IEnumerable that is NOT an ICollection
         IEnumerable source = Iterate(1, 2, 3);
 
-        int result = source.Count();
-
-        Assert.That(result, Is.EqualTo(3));
+        Assert.That(source.Count(), Is.EqualTo(3));
     }
 
     [Test]
@@ -404,12 +241,9 @@ public class EnumerableExtensionsTests
     {
         IEnumerable source = Array.Empty<int>();
 
-        int result = source.Count();
-
-        Assert.That(result, Is.EqualTo(0));
+        Assert.That(source.Count(), Is.EqualTo(0));
     }
 
-    // Helper: yields values as a plain IEnumerable (not ICollection)
     private static IEnumerable Iterate(params object[] values)
     {
         foreach (object v in values)
