@@ -124,6 +124,25 @@ public class EnumerableExtensionsTests
         yield return new TestCaseData(new[] { "a", "b" }, null).SetArgDisplayNames("SingleOrNull_WhenMultipleStrings_ReturnsNull");
     }
 
+    // These use List<T> so the "as TOut[]" cast fails and enumerable.ToArray() executes.
+    [TestCaseSource(nameof(SingleOrNullNonArrayCases))]
+    public void SingleOrNull_WhenSourceIsNotArray_ReturnsExpected(IEnumerable<int> source, int expected)
+    {
+        int result = source.SingleOrNull();
+
+        Assert.That(result, Is.EqualTo(expected));
+    }
+
+    private static IEnumerable<TestCaseData> SingleOrNullNonArrayCases()
+    {
+        yield return new TestCaseData(new List<int> { 7 }, 7)
+            .SetArgDisplayNames("SingleOrNull_NonArray_SingleElement_ReturnsThatElement");
+        yield return new TestCaseData(new List<int>(), default(int))
+            .SetArgDisplayNames("SingleOrNull_NonArray_Empty_ReturnsDefault");
+        yield return new TestCaseData(new List<int> { 1, 2 }, default(int))
+            .SetArgDisplayNames("SingleOrNull_NonArray_MultipleElements_ReturnsDefault");
+    }
+
     #endregion
 
     #region ToObservableCollection

@@ -32,6 +32,18 @@
     <ProjectReference Include="..\HunterPie.UI\HunterPie.UI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\HunterPie\Game\Rise\Data\MonsterData.xml" Link="Game\Rise\Data\MonsterData.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\HunterPie\Game\World\Data\MonsterData.xml" Link="Game\World\Data\MonsterData.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\HunterPie\Game\Wilds\Data\MonsterData.xml" Link="Game\Wilds\Data\MonsterData.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <ProjectExtensions>
     <VisualStudio>
       <UserProperties BuildVersion_StartDate="2000/1/1" />
