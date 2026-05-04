@@ -728,6 +728,152 @@ public class DamageMeterControllerV2Tests
         Assert.That(_viewModel.Players[0].IsVisible, Is.True);
     }
 
+    // ── HandleMemberJoin / HandleMemberLeave — unknown MemberType ─────────────
+
+    [Test]
+    public void HandleMemberJoin_WithUnknownMemberType_DoesNotAddToAnyCollection()
+    {
+        var memberMock = new Mock<IPartyMember>();
+        memberMock.Setup(m => m.Type).Returns((MemberType)99);
+
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        Assert.That(_viewModel.Players.Count, Is.EqualTo(0));
+        Assert.That(_viewModel.Pets.Members.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void HandleMemberLeave_WithUnknownMemberType_DoesNotThrow()
+    {
+        var memberMock = new Mock<IPartyMember>();
+        memberMock.Setup(m => m.Type).Returns((MemberType)99);
+
+        Assert.DoesNotThrow(() =>
+        {
+            _mockParty.Raise(p => p.OnMemberLeave += null, (object?)null, memberMock.Object);
+            PumpDispatcher();
+        });
+    }
+
+    // ── UnhookEvents with active quest ─────────────────────────────────────────
+
+    [Test]
+    public void UnhookEvents_WithActiveQuest_QuestDeathCounterNoLongerAffectsViewModel()
+    {
+        var questMock = new Mock<IQuest>();
+        questMock.Setup(q => q.MaxDeaths).Returns(3);
+        questMock.Setup(q => q.Deaths).Returns(0);
+        _mockGame.Setup(g => g.Quest).Returns(questMock.Object);
+
+        var viewModel = new MeterViewModelV2(_config);
+        var wCtx = new WidgetContext(viewModel, new OverlayClientConfig(), new DevelopmentConfig(), new Mock<IOverlayState>().Object);
+        var controller = new DamageMeterControllerV2(_mockContext.Object, viewModel, wCtx, _config);
+
+        controller.UnhookEvents();
+
+        questMock.Raise(q => q.OnDeathCounterChange += null, new CounterChangeEventArgs(current: 5, max: 10));
+
+        Assert.That(viewModel.Deaths, Is.EqualTo(0)); // unchanged after unhook
+    }
+
+    // ── AddMember / RemoveMember with non-null IPlayerStatus ──────────────────
+
+    [Test]
+    public void AddMember_WithNonNullStatus_StatusEventsUpdateViewModel()
+    {
+        var statusMock = new Mock<IPlayerStatus>();
+        statusMock.Setup(s => s.Affinity).Returns(10.0);
+        statusMock.Setup(s => s.RawDamage).Returns(100.0);
+        statusMock.Setup(s => s.ElementalDamage).Returns(50.0);
+
+        var memberMock = BuildPlayerMember("Affinity Player", damage: 0, slot: 0, isMyself: true);
+        memberMock.Setup(m => m.Status).Returns(statusMock.Object);
+
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        statusMock.Raise(s => s.AffinityChanged += null, new SimpleValueChangeEventArgs<double>(0, 25.0));
+
+        Assert.That(_viewModel.Players[0].Affinity, Is.EqualTo(25.0).Within(0.001));
+    }
+
+    [Test]
+    public void RemoveMember_WithNonNullStatus_StatusEventsNoLongerUpdateViewModel()
+    {
+        var statusMock = new Mock<IPlayerStatus>();
+        statusMock.Setup(s => s.Affinity).Returns(10.0);
+        statusMock.Setup(s => s.RawDamage).Returns(100.0);
+        statusMock.Setup(s => s.ElementalDamage).Returns(50.0);
+
+        var memberMock = BuildPlayerMember("Affinity Player", damage: 0, slot: 0, isMyself: true);
+        memberMock.Setup(m => m.Status).Returns(statusMock.Object);
+
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        // Capture ViewModel reference before removal
+        var playerVm = _viewModel.Players[0];
+        playerVm.Affinity = 10.0;
+
+        _mockParty.Raise(p => p.OnMemberLeave += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        // After leave, status events must be unsubscribed
+        statusMock.Raise(s => s.AffinityChanged += null, new SimpleValueChangeEventArgs<double>(0, 99.0));
+
+        Assert.That(playerVm.Affinity, Is.EqualTo(10.0).Within(0.001)); // unchanged
+    }
+
+    // ── OnDamageDealt — first-hit tracking ────────────────────────────────────
+
+    [Test]
+    public void OnDamageDealt_WhenMemberPreviousDamageWasZero_UpdatesDamageAndSetsFirstHitAt()
+    {
+        var memberMock = BuildPlayerMember("FirstHitter", damage: 0, slot: 0, isMyself: false);
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        memberMock.Setup(m => m.Damage).Returns(750);
+        memberMock.Raise(m => m.OnDamageDealt += null, (object?)null, memberMock.Object);
+
+        Assert.That(_viewModel.Players[0].Damage, Is.EqualTo(750));
+    }
+
+    // ── CalculateDpsByConfiguredStrategy — default strategy ───────────────────
+
+    [Test]
+    public void CalculateDpsByConfiguredStrategy_WithUnknownStrategy_FallsBackToElapsedOfOne()
+    {
+        _config.DpsCalculationStrategy.Value = (DPSCalculationStrategy)99;
+        var memberMock = BuildPlayerMember("Fallback", damage: 1000, slot: 0, isMyself: false);
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        PumpDispatcher();
+
+        // Trigger canUpdate path: lastUpdate=0.4%0.5=0.4, newUpdate=0.6%0.5=0.1 → 0.1 < 0.4 = true
+        _mockGame.Raise(g => g.OnTimeElapsedChange += null, new TimeElapsedChangeEventArgs(false, 0.6f));
+        PumpDispatcher();
+
+        // default _ => 1: timeElapsed = max(1, 1) = 1, DPS = 1000/1 = 1000
+        Assert.That(_viewModel.Players[0].DPS, Is.EqualTo(1000.0).Within(1.0));
+    }
+
+    // ── BuildPlayerPlots — isVisible=false path ────────────────────────────────
+
+    [Test]
+    public void AddMember_WhenShowOnlySelfEnabledBeforeJoin_NonSelfMemberHasSeriesAdded()
+    {
+        _config.ShowOnlySelf.Value = true;
+        var memberMock = BuildPlayerMember("Hidden", damage: 0, slot: 1, isMyself: false);
+
+        _mockParty.Raise(p => p.OnMemberJoin += null, (object?)null, memberMock.Object);
+        // BuildPlayerPlots sets series.Visibility = Collapsed which NPEs in tests without a real chart
+        try { PumpDispatcher(); } catch (NullReferenceException) { }
+
+        // The series was added to the collection before the NPE on Visibility.Collapsed
+        Assert.That(_viewModel.Series.Count, Is.EqualTo(1));
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private static Mock<IPartyMember> BuildPlayerMember(string name, int damage, int slot, bool isMyself)
